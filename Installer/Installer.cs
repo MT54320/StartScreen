@@ -19,7 +19,7 @@ namespace StartScreenSetup
     static class Info
     {
         public const string Name = "Start screen";
-        public const string Version = "1.5";
+        public const string Version = "1.0";
         public const string Publisher = "MT";
         public const string AppExe = "StartScreen.exe";
         public static readonly Color LogoGray = Color.FromArgb(96, 96, 96);   // the logo's accent (matches the icon)
@@ -193,7 +193,13 @@ namespace StartScreenSetup
             try { Registry.CurrentUser.DeleteSubKeyTree(Info.UninstallKey, false); } catch { }
             if (removeSettings) { try { if (Directory.Exists(Info.UserData)) Directory.Delete(Info.UserData, true); } catch { } }
             // Main() relaunches Uninstall.exe from %TEMP% first, so the install folder isn't locked by us.
-            try { if (Directory.Exists(dir)) Directory.Delete(dir, true); } catch { }
+            // Windows can keep StartScreen.exe locked for a moment after the app exits (or while it is scanned), so one try
+            // sometimes fails and silently leaves the folder behind. Keep trying for a few seconds.
+            for (int attempt = 0; attempt < 25 && Directory.Exists(dir); attempt++)
+            {
+                try { Directory.Delete(dir, true); }
+                catch { Thread.Sleep(400); }
+            }
         }
 
         static void TryDelete(string path) { try { if (File.Exists(path)) File.Delete(path); } catch { } }
