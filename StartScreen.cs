@@ -2601,6 +2601,27 @@ namespace StartScreen8
             }
         }
 
+        // Where a tile of this size may go, best spot first. Small tiles fill a 2x2 block (top-left, top-right, bottom-left,
+        // bottom-right) before moving on to the next block, like the real 8.1 Start screen. Bigger tiles snap to even cells.
+        static IEnumerable<KeyValuePair<int, int>> TileSpots(int w, int h, int rows, int maxCols)
+        {
+            if (w == 1 && h == 1)
+            {
+                for (int cb = 0; cb + 1 < maxCols; cb += 2)
+                    for (int rb = 0; rb + 1 < rows; rb += 2)
+                    {
+                        yield return new KeyValuePair<int, int>(cb, rb);
+                        yield return new KeyValuePair<int, int>(cb + 1, rb);
+                        yield return new KeyValuePair<int, int>(cb, rb + 1);
+                        yield return new KeyValuePair<int, int>(cb + 1, rb + 1);
+                    }
+                yield break;
+            }
+            for (int c = 0; c + w <= maxCols; c += 2)
+                for (int r = 0; r + h <= rows; r += 2)
+                    yield return new KeyValuePair<int, int>(c, r);
+        }
+
         int Rows()
         {
             double area = VH - 150 - 80 - 44;
@@ -2763,11 +2784,11 @@ namespace StartScreen8
                 int w, h;
                 SizeCells(t.Size, out w, out h);
                 if (h > rows) h = rows;
-                int align = w == 1 ? 1 : 2;
                 bool placed = false;
-                for (int c = 0; c + w <= MaxCols && !placed; c += align)
-                    for (int r = 0; r + h <= rows && !placed; r += align)
+                foreach (var spot in TileSpots(w, h, rows, MaxCols))
                     {
+                        if (placed) break;
+                        int c = spot.Key, r = spot.Value;
                         bool fits = true;
                         for (int dc = 0; dc < w && fits; dc++)
                             for (int dr = 0; dr < h && fits; dr++)
@@ -4354,6 +4375,23 @@ namespace StartScreen8
             sidePanel.Child = dock;
         }
 
+        // The Start screen logo (same artwork as the icon): the tile layout on a flat gray, on a 16-unit grid.
+        static FrameworkElement MakeLogo(double size)
+        {
+            var gray = Color.FromRgb(96, 96, 96);
+            double u = size / 16.0;
+            var c = new Canvas { Width = size, Height = size, Background = Colorx.Brush(gray), SnapsToDevicePixels = true };
+            double[][] tiles = { new[] { 2.0, 2, 7, 7, 1.00 }, new[] { 10.0, 2, 4, 3, 0.72 }, new[] { 10.0, 6, 4, 3, 0.50 }, new[] { 2.0, 10, 12, 4, 0.86 } };
+            foreach (var t in tiles)
+            {
+                var fill = Color.FromRgb((byte)(gray.R + (255 - gray.R) * t[4]), (byte)(gray.G + (255 - gray.G) * t[4]), (byte)(gray.B + (255 - gray.B) * t[4]));
+                var r = new System.Windows.Shapes.Rectangle { Width = t[2] * u, Height = t[3] * u, Fill = Colorx.Brush(fill) };
+                Canvas.SetLeft(r, t[0] * u); Canvas.SetTop(r, t[1] * u);
+                c.Children.Add(r);
+            }
+            return c;
+        }
+
         FrameworkElement TipRow(string key, string text)
         {
             var row = new DockPanel { Margin = new Thickness(0, 4, 0, 4) };
@@ -4494,18 +4532,13 @@ namespace StartScreen8
             sp.Children.Add(Heading("About"));
             var about = new Border { Background = aboutBrush, Padding = new Thickness(18, 16, 18, 18), Margin = new Thickness(0, 2, 0, 10) };
             var ab = new StackPanel();
-            var logo = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
-            for (int i = 0; i < 2; i++)
-            {
-                var col = new StackPanel { Margin = new Thickness(0, 0, 3, 0) };
-                col.Children.Add(new Border { Width = 14, Height = 14, Background = Brushes.White, Margin = new Thickness(0, 0, 0, 3) });
-                col.Children.Add(new Border { Width = 14, Height = 14, Background = Brushes.White });
-                logo.Children.Add(col);
-            }
+            var logo = MakeLogo(40);
+            logo.HorizontalAlignment = HorizontalAlignment.Left;
+            logo.Margin = new Thickness(0, 0, 0, 10);
             ab.Children.Add(logo);
             ab.Children.Add(new TextBlock { Text = "Start Screen", FontFamily = Light, FontSize = 26 });
             ab.Children.Add(new TextBlock { Text = "A Project Made By MT", FontFamily = Semilight, FontSize = 17, Margin = new Thickness(0, 2, 0, 8) });
-            ab.Children.Add(new TextBlock { Text = "Version 1.5  ·  The Windows 8.1 Start screen, back on Windows 11", FontSize = 12, Opacity = 0.8, TextWrapping = TextWrapping.Wrap });
+            ab.Children.Add(new TextBlock { Text = "Version 1.0  ·  The Windows 8.1 Start screen, back on modern Windows", FontSize = 12, Opacity = 0.8, TextWrapping = TextWrapping.Wrap });
             about.Child = ab;
             sp.Children.Add(about);
             sp.Children.Add(LinkRow("", "Exit Start screen", App.Exit));
