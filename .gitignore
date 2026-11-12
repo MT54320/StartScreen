@@ -1,0 +1,10 @@
+# build output: rebuild with build.ps1 / Installer\build-installer.ps1
+*.exe
+# ...except the installer, which lives at the top of the repo so it is the one thing people double-click
+!/StartScreenSetup.exe
+*.zip
+*.pdb
+# icon preview renders made by make-icon.ps1
+icon-preview-*.png
+# local test output
+snap*/
